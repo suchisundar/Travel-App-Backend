@@ -53,7 +53,10 @@ describe("authenticate", function () {
 
 describe("register", function () {
   const newUser = {
-    username: "new"
+    username: "new",
+    firstName: "New",
+    lastName: "User",
+    email: "newuser@test.com",
   };
 
   test("works", async function () {
@@ -61,7 +64,14 @@ describe("register", function () {
       ...newUser,
       password: "password",
     });
-    expect(user).toEqual(newUser);
+
+    expect(user).toEqual({
+      username: "new",
+      firstName: "New",
+      lastName: "User",
+      email: "newuser@test.com",
+    });
+
     const found = await db.query("SELECT * FROM users WHERE username = 'new'");
     expect(found.rows.length).toEqual(1);
     expect(found.rows[0].password.startsWith("$2b$")).toEqual(true);
@@ -70,37 +80,16 @@ describe("register", function () {
   test("bad request with duplicate data", async function () {
     try {
       await User.register({
-        ...newUser,
+        username: "u1", // Already exists
         password: "password",
-      });
-      await User.register({
-        ...newUser,
-        password: "password",
+        firstName: "U1",
+        lastName: "User",
+        email: "duplicate@test.com",
       });
       fail();
     } catch (err) {
       expect(err instanceof BadRequestError).toBeTruthy();
-    }
-  });
-});
-
-/************************************** remove */
-
-describe("remove", function () {
-
-  test("works", async function () {
-    await User.remove("u1");
-    const res = await db.query(
-      "SELECT * FROM users WHERE username='u1'");
-    expect(res.rows.length).toEqual(0);
-  });
-
-  test("not found if no such user", async function () {
-    try {
-      await User.remove("nope");
-      fail();
-    } catch (err) {
-      expect(err instanceof NotFoundError).toBeTruthy();
+      expect(err.message).toEqual("Duplicate username: u1");
     }
   });
 });

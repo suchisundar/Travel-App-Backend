@@ -1,4 +1,4 @@
-jest.setTimeout(10000); // Sets timeout to 10 seconds
+"use strict"; 
 
 const request = require("supertest");
 const app = require("../App");
@@ -9,7 +9,7 @@ const {
   commonBeforeEach,
   commonAfterEach,
   commonAfterAll,
-} = require("../routes/_testCommon");
+} = require("./_testCommon");
 
 jest.mock("axios");
 

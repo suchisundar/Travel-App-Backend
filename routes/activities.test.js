@@ -1,10 +1,8 @@
 "use strict";
-jest.setTimeout(10000); // Sets timeout to 10 seconds
-
 const request = require("supertest");
 const app = require("../App");
 const axios = require("axios");
-const { db } = require("../db"); // Ensure db is imported here
+
 
 const {
   commonBeforeAll,

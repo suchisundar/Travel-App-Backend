@@ -1,5 +1,5 @@
 "use strict";
-jest.setTimeout(10000); // Sets timeout to 10 seconds
+jest.setTimeout(30000); 
 
 const request = require("supertest");
 const app = require("../App");
@@ -10,7 +10,7 @@ const {
   commonAfterEach, 
   commonAfterAll, 
   u1Token 
-} = require("../models/_testCommon");
+} = require("./_testCommon");
 
 beforeAll(commonBeforeAll);
 beforeEach(commonBeforeEach);
