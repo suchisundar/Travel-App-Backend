@@ -1,5 +1,5 @@
-
 const express = require("express");
+const axios = require("axios"); 
 const { authAmadeus } = require("../utils/amadeusAuth");
 const { ensureLoggedIn } = require("../middleware/auth");
 
@@ -11,7 +11,7 @@ router.get("/activities/:city", ensureLoggedIn, async (req, res, next) => {
     const token = await authAmadeus();
 
     const response = await axios.get(
-      `https://test.api.amadeus.com/v1/shopping/activities?latitude=37.7749&longitude=-122.4194`,
+      `https://test.api.amadeus.com/v1/shopping/activities?cityCode=${city}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 

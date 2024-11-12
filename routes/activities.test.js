@@ -3,7 +3,6 @@ const request = require("supertest");
 const app = require("../App");
 const axios = require("axios");
 
-
 const {
   commonBeforeAll,
   commonBeforeEach,
@@ -17,10 +16,7 @@ jest.mock("axios");
 beforeAll(commonBeforeAll);
 beforeEach(commonBeforeEach);
 afterEach(commonAfterEach);
-afterAll(async () => {
-  await commonAfterAll();
-  
-});
+afterAll(commonAfterAll);
 
 describe("GET /trips/:tripId/activities", () => {
   test("retrieves activities for a trip from the database", async () => {
@@ -31,7 +27,7 @@ describe("GET /trips/:tripId/activities", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.activities).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ description: "Visit Golden Gate Park" }),
+        expect.objectContaining({ description: "Visit Golden Gate Bridge" }),
       ])
     );
   });
@@ -48,7 +44,7 @@ describe("GET /trips/:tripId/activities", () => {
       ],
     };
 
-    axios.get.mockResolvedValue(mockAmadeusData);
+    axios.get.mockResolvedValueOnce({ data: mockAmadeusData });
 
     const res = await request(app)
       .get("/activities/San%20Francisco")
