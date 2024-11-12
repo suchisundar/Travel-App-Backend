@@ -12,7 +12,7 @@ const {
   commonAfterEach, 
   commonAfterAll, 
   u1Token 
-} = require("../routes/_testCommon");
+} = require("./_testCommon");
 
 beforeAll(commonBeforeAll);
 beforeEach(commonBeforeEach);

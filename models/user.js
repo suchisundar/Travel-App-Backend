@@ -1,91 +1,42 @@
-"use strict";
+describe("register", function () {
+  const newUser = {
+    username: "new",
+    firstName: "New",
+    lastName: "User",
+    email: "newuser@test.com",
+  };
 
-const db = require("../db");
-const bcrypt = require("bcrypt");
-const {
-  NotFoundError,
-  BadRequestError,
-  UnauthorizedError,
-} = require("../expressError");
+  test("works", async function () {
+    let user = await User.register({
+      ...newUser,
+      password: "password",
+    });
 
-const { BCRYPT_WORK_FACTOR } = require("../config.js");
+    expect(user).toEqual({
+      username: "new",
+      firstName: "New",
+      lastName: "User",
+      email: "newuser@test.com",
+    });
 
+    const found = await db.query("SELECT * FROM users WHERE username = 'new'");
+    expect(found.rows.length).toEqual(1);
+    expect(found.rows[0].password.startsWith("$2b$")).toEqual(true);
+  });
 
-/** Related functions for users table. */
-
-class User {
-  
-  /** Authenticate user with username, password, returns { username }
-   *
-   * Throws UnauthorizedError is user not found or wrong password.
-   **/
-
-  static async authenticate(username, password) {
-    const result = await db.query(
-      `SELECT id, username, password
-       FROM users
-       WHERE username = $1`,
-      [username]
-    );
-  
-    const user = result.rows[0];
-  
-    if (user) {
-      const isValid = await bcrypt.compare(password, user.password);
-      if (isValid === true) {
-        delete user.password; 
-        return user;  
-      }
+  test("bad request with duplicate data", async function () {
+    try {
+      await User.register({
+        username: "u1", // Already exists
+        password: "password",
+        firstName: "U1",
+        lastName: "User",
+        email: "duplicate@test.com",
+      });
+      fail();
+    } catch (err) {
+      expect(err instanceof BadRequestError).toBeTruthy();
+      expect(err.message).toEqual("Duplicate username: u1");
     }
-  
-    throw new UnauthorizedError("Invalid username/password");
-  }
-  
-
-  /************** Register user with data; returns { username }
-   *
-   * Throws BadRequestError on duplicates.
-   **/
-
-  static async register({ username, password, firstName, lastName, email }) {
-    const duplicateCheck = await db.query(
-      `SELECT username FROM users WHERE username = $1`,
-      [username]
-    );
-  
-    if (duplicateCheck.rows[0]) {
-      throw new BadRequestError(`Duplicate username: ${username}`);
-    }
-  
-    const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
-  
-    const result = await db.query(
-      `INSERT INTO users
-       (username, password, first_name, last_name, email)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, username`,  
-      [username, hashedPassword, firstName, lastName, email]
-    );
-  
-    return result.rows[0]; 
-  }
-  
-  
-  /**************** Delete given user; returns undefined. */
-
-  static async remove(username) {
-    let result = await db.query(
-          `DELETE
-           FROM users
-           WHERE username = $1
-           RETURNING username`,
-        [username],
-    );
-    const user = result.rows[0];
-
-    if (!user) throw new NotFoundError(`No user: ${username}`);
-  }
-}
-
-
-module.exports = User;
+  });
+});

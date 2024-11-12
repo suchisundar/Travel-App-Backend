@@ -9,15 +9,18 @@ const {
   commonBeforeEach,
   commonAfterEach,
   commonAfterAll,
-} = require("../models/_testCommon");
+} = require("./_testCommon");
 
 beforeAll(commonBeforeAll);
 beforeEach(commonBeforeEach);
 afterEach(commonAfterEach);
 afterAll(async () => {
   await commonAfterAll();
-  await db.end();
+  if (!db._ending) {
+    await db.end(); // Ensure only one close call.
+  }
 });
+
 
 describe("POST /users", () => {
   test("Registers a new user", async () => {
