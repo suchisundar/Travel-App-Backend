@@ -42,7 +42,7 @@ VALUES
   (3, 3, 'Tour Alcatraz Island');
 
 -- Optional: Insert packing list items for testing packing list endpoints
-INSERT INTO packing_items (id, trip_id, item, category)
+INSERT INTO packing_items (id, trip_id, item)
 VALUES
-  (1, 1, 'Raincoat', 'clothing'),
-  (2, 1, 'Sunscreen', 'toiletries');
+  (1, 1, 'Raincoat'),
+  (2, 1, 'Sunscreen');

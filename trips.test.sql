@@ -49,6 +49,5 @@ CREATE TABLE packing_items (
   id SERIAL PRIMARY KEY,
   trip_id INTEGER REFERENCES trips(id) ON DELETE CASCADE,
   item TEXT NOT NULL,
-  category TEXT NOT NULL,
   packed BOOLEAN DEFAULT FALSE
 );

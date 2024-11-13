@@ -21,7 +21,7 @@ describe("POST /trips/:tripId/packinglist", () => {
   test("Adds an item to the packing list", async () => {
     const res = await request(app)
       .post("/trips/1/packinglist")
-      .send({ item: "Raincoat", category: "clothing" })
+      .send({ item_name: "Raincoat" })
       .set("Authorization", `Bearer ${u1Token}`);
       
     expect(res.statusCode).toBe(201);

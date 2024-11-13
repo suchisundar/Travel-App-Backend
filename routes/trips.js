@@ -14,13 +14,13 @@ const { ensureLoggedIn } = require("../middleware/auth");
 
 const router = express.Router();
 
-/** POST / { trip } => { trip }
+/** POST /:username/trips { trip } => { trip }
  *
  * Adds a new trip.
  *
  * Authorization required: logged in
  */
-router.post("/", ensureLoggedIn, async (req, res, next) => {
+router.post("/:username/trips", ensureLoggedIn, async function (req, res, next) {
   try {
     const validator = jsonschema.validate(req.body, tripSchema);
     if (!validator.valid) {
@@ -28,15 +28,29 @@ router.post("/", ensureLoggedIn, async (req, res, next) => {
       throw new BadRequestError(errs);
     }
 
-    const userId = res.locals.user.id;
-    const tripData = { ...req.body, userId };
-
-    const trip = await Trip.create(tripData);
+    const trip = await Trip.create({ ...req.body, username: req.params.username });
     return res.status(201).json({ trip });
   } catch (err) {
     return next(err);
   }
 });
+
+/** GET /:username/trips => { trips }
+ *
+ * Gets all trips for a user.
+ *
+ * Authorization required: logged in
+ */
+
+router.get("/:username/trips", ensureLoggedIn, async function (req, res, next) {
+  try {
+    const trips = await Trip.getUserTrips(req.params.username);
+    return res.json({ trips });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 
 /** POST /:tripId/activities { activity } => { activity }
  *
@@ -100,6 +114,26 @@ router.get("/:tripId/weather", ensureLoggedIn, async (req, res, next) => {
         },
       }
     );
+
+  /** POST /:tripId/packinglist { item } => { packingListItem }
+ *
+ * Adds an item to the packing list for a trip.
+ *
+ * Authorization required: logged in
+ */
+  router.post("/:tripId/packinglist", ensureLoggedIn, async (req, res, next) => {
+    try {
+      const { tripId } = req.params;
+      const { item_name } = req.body;
+  
+      const packingListItem = await Trip.addPackingItem({ trip_id: tripId, item_name });
+      return res.status(201).json({ packingListItem });
+    } catch (err) {
+      return next(err);
+    }
+  });
+  
+
 
     const weatherData = response.data.days.map((day) => ({
       date: day.datetime,
