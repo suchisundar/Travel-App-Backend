@@ -2,6 +2,7 @@
 
 const express = require("express");
 const jsonschema = require("jsonschema");
+const axios = require("axios");
 const Trip = require("../models/trip");
 const { BadRequestError } = require("../expressError");
 
@@ -27,8 +28,7 @@ router.post("/", ensureLoggedIn, async (req, res, next) => {
       throw new BadRequestError(errs);
     }
 
-    // Add userId from res.locals.user to the request data
-    const userId = res.locals.user.id; 
+    const userId = res.locals.user.id;
     const tripData = { ...req.body, userId };
 
     const trip = await Trip.create(tripData);
@@ -38,7 +38,6 @@ router.post("/", ensureLoggedIn, async (req, res, next) => {
   }
 });
 
-
 /** POST /:tripId/activities { activity } => { activity }
  *
  * Adds an activity to an existing trip.
@@ -47,8 +46,7 @@ router.post("/", ensureLoggedIn, async (req, res, next) => {
  */
 router.post("/:tripId/activities", ensureLoggedIn, async (req, res, next) => {
   try {
-    // Attach trip_id from the URL to the request body
-    req.body.trip_id = parseInt(req.params.tripId, 10); // Ensure it's an integer
+    req.body.trip_id = parseInt(req.params.tripId, 10);
 
     const validator = jsonschema.validate(req.body, activitySchema);
     if (!validator.valid) {
@@ -63,7 +61,12 @@ router.post("/:tripId/activities", ensureLoggedIn, async (req, res, next) => {
   }
 });
 
-/** GET /:tripId/activities */ 
+/** GET /:tripId/activities => { activities }
+ *
+ * Gets all activities for a trip.
+ *
+ * Authorization required: logged in
+ */
 router.get("/:tripId/activities", ensureLoggedIn, async (req, res, next) => {
   try {
     const activities = await Trip.getActivities(parseInt(req.params.tripId, 10));
@@ -73,6 +76,45 @@ router.get("/:tripId/activities", ensureLoggedIn, async (req, res, next) => {
   }
 });
 
+/** GET /:tripId/weather => { weather }
+ *
+ * Fetches weather data for a trip from Visual Crossing.
+ *
+ * Authorization required: logged in
+ */
+router.get("/:tripId/weather", ensureLoggedIn, async (req, res, next) => {
+  try {
+    const { location, startDate, endDate } = req.query;
+    const apiKey = process.env.VISUALCROSSING_API_KEY;
+
+    if (!location || !startDate || !endDate) {
+      throw new BadRequestError("Location, startDate, and endDate query parameters are required");
+    }
+
+    const response = await axios.get(
+      `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${location}/${startDate}/${endDate}`,
+      {
+        params: {
+          key: apiKey,
+          unitGroup: "us",
+        },
+      }
+    );
+
+    const weatherData = response.data.days.map((day) => ({
+      date: day.datetime,
+      tempmax: day.tempmax,
+      tempmin: day.tempmin,
+      precipprob: day.precipprob,
+      conditions: day.conditions,
+      icon: day.icon,
+    }));
+
+    return res.json({ weather: weatherData });
+  } catch (err) {
+    return next(err);
+  }
+});
 
 /** POST /:tripId/weather { weather } => { weather }
  *
@@ -86,7 +128,7 @@ router.post("/:tripId/weather", ensureLoggedIn, async (req, res, next) => {
 
     const validator = jsonschema.validate(req.body, weatherSchema);
     if (!validator.valid) {
-      const errs = validator.errors.map(e => e.stack);
+      const errs = validator.errors.map((e) => e.stack);
       throw new BadRequestError(errs);
     }
 
@@ -97,16 +139,16 @@ router.post("/:tripId/weather", ensureLoggedIn, async (req, res, next) => {
   }
 });
 
-/** Get trip recommendations based on weather and activities */
-
+/** GET /recommendations => { packingList }
+ *
+ * Get trip recommendations based on weather and activities.
+ */
 router.get("/recommendations", (req, res) => {
   const { weather, activities } = req.query;
-  const activityList = activities.split(",");
+  const activityList = activities ? activities.split(",") : [];
 
   const recommendations = Trip.getPackingRecommendations(weather, activityList);
   return res.json({ packingList: recommendations });
 });
-
-
 
 module.exports = router;

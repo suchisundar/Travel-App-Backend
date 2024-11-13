@@ -1,5 +1,6 @@
 "use strict";
-jest.setTimeout(10000); // Sets timeout to 10 seconds
+
+jest.setTimeout(10000); 
 
 const request = require("supertest");
 const app = require("../App");
@@ -23,15 +24,21 @@ describe("GET /trips/:tripId/weather", () => {
   test("Fetches weather data for a trip", async () => {
     axios.get.mockResolvedValue({
       data: {
-        location: { address: "San Francisco, CA" },
         days: [
-          { datetime: "2024-12-01", tempmax: 60, tempmin: 50, precipprob: 10, conditions: "Partly Cloudy" },
+          {
+            datetime: "2024-12-01",
+            tempmax: 60,
+            tempmin: 50,
+            precipprob: 10,
+            conditions: "Partly Cloudy",
+            icon: "partly-cloudy-day",
+          },
         ],
       },
     });
 
     const res = await request(app)
-      .get("/trips/1/weather")
+      .get("/trips/1/weather?location=San%20Francisco&startDate=2024-12-01&endDate=2024-12-07")
       .set("Authorization", `Bearer ${u1Token}`);
 
     expect(res.statusCode).toBe(200);
@@ -42,9 +49,10 @@ describe("GET /trips/:tripId/weather", () => {
     axios.get.mockRejectedValue(new Error("API failure"));
 
     const res = await request(app)
-      .get("/trips/1/weather")
+      .get("/trips/1/weather?location=San%20Francisco&startDate=2024-12-01&endDate=2024-12-07")
       .set("Authorization", `Bearer ${u1Token}`);
 
     expect(res.statusCode).toBe(500);
+    expect(res.body.error.message).toBe("API failure");
   });
 });
