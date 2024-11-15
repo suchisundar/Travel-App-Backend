@@ -66,6 +66,28 @@ class User {
     return result.rows[0]; // { id, username }
   }
 
+/** Get user by username.
+ *
+ * Returns { username, firstName, lastName, email }.
+ *
+ * Throws NotFoundError if user not found.
+ */
+static async get(username) {
+  const result = await db.query(
+    `SELECT username, first_name AS "firstName", last_name AS "lastName", email
+     FROM users
+     WHERE username = $1`,
+    [username]
+  );
+
+  const user = result.rows[0];
+
+  if (!user) throw new NotFoundError(`No user: ${username}`);
+
+  return user;
+}
+
+
   /** Delete given user.
    *
    * Throws NotFoundError if user not found.

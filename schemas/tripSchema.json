@@ -2,18 +2,20 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "location": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 255
+    "location": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "start_date": { "type": "string", "format": "date" },
+    "end_date": { "type": "string", "format": "date" },
+    "activities": {
+      "type": "array",
+      "items": { "$ref": "activityschema.json" }  
     },
-    "start_date": {
-      "type": "string",
-      "format": "date"
+    "weather": {
+      "type": "array",
+      "items": { "$ref": "weatherschema.json" }  
     },
-    "end_date": {
-      "type": "string",
-      "format": "date"
+    "packing_items": {
+      "type": "array",
+      "items": { "$ref": "packingitemschema.json" }   
     }
   },
   "required": ["location", "start_date", "end_date"],

@@ -5,7 +5,7 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-
+const User = require("./models/user");
 const { NotFoundError } = require("./expressError");
 const { authenticateJWT } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
@@ -31,9 +31,9 @@ app.use("/geocode", geocodeRoutes);
 app.use("/api", apiRoutes);
 
 /** Handle 404 errors -- this matches everything */
-app.use(function (req, res, next) {
-  return next(new NotFoundError());
-});
+// app.use(function (req, res, next) {
+//   return next(new NotFoundError());
+// });
 
 /** Generic error handler; anything unhandled goes here. */
 app.use(function (err, req, res, next) {

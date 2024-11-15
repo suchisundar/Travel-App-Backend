@@ -6,26 +6,24 @@ const jwt = require("jsonwebtoken");
 const { SECRET_KEY } = require("../config");
 const { UnauthorizedError } = require("../expressError");
 
-
 /** Middleware: Authenticate user.
  *
  * If a token was provided, verify it, and, if valid, store the token payload
- * on res.locals 
+ * on res.locals.
  *
  * It's not an error if no token was provided or if the token is not valid.
  */
-
 function authenticateJWT(req, res, next) {
   try {
     const authHeader = req.headers && req.headers.authorization;
     if (authHeader) {
       const token = authHeader.replace(/^[Bb]earer /, "").trim();
       res.locals.user = jwt.verify(token, SECRET_KEY);
-      console.log("Authenticated user:", res.locals.user); 
+      console.log("Authenticated user:", res.locals.user);
     }
     return next();
   } catch (err) {
-    return next();
+    return next(); // Continue even if authentication fails (optional for public routes)
   }
 }
 
@@ -33,37 +31,31 @@ function authenticateJWT(req, res, next) {
  *
  * If not, raises Unauthorized.
  */
-
 function ensureLoggedIn(req, res, next) {
   try {
-    if (!res.locals.user) throw new UnauthorizedError("Must be logged in");
+    if (!res.locals.user) throw new UnauthorizedError("Must be logged in to access this route.");
     return next();
   } catch (err) {
     return next(err);
   }
 }
 
-
-
-
-/** Middleware to use when they must provide a valid token & be user matching
- *  username provided as route param.
+/** Middleware to use when they must provide a valid token & be the user
+ *  matching the username provided as route param.
  *
  *  If not, raises Unauthorized.
  */
-
 function ensureCorrectUser(req, res, next) {
   try {
     const user = res.locals.user;
-    if (!(user && ( user.username === req.params.username))) {
-      throw new UnauthorizedError("Must be logged in");
+    if (!(user && user.username === req.params.username)) {
+      throw new UnauthorizedError("Unauthorized: Access restricted to the correct user.");
     }
     return next();
   } catch (err) {
     return next(err);
   }
 }
-
 
 module.exports = {
   authenticateJWT,
