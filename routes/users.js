@@ -18,20 +18,24 @@ const router = express.Router();
  *
  * Authorization required: logged in
  */
-router.post("/:username/trips", ensureLoggedIn, async function (req, res, next) {
+router.post("/:username/trips", ensureCorrectUser, async function (req, res, next) {
   try {
-    const validator = jsonschema.validate(req.body, tripSchema);
-    if (!validator.valid) {
-      const errs = validator.errors.map(e => e.stack);
-      throw new BadRequestError(errs);
-    }
+    const { location, start_date, end_date } = req.body;
 
-    const trip = await Trip.create({ ...req.body, username: req.params.username });
+    // Attach the trip to the logged-in user
+    const trip = await Trip.create({
+      username: req.params.username, 
+      location,
+      start_date,
+      end_date,
+    });
+
     return res.status(201).json({ trip });
   } catch (err) {
     return next(err);
   }
 });
+
 
 
 /** GET /:username => { user }

@@ -30,6 +30,21 @@ class Trip {
     );
     return result.rows;
   }
+
+  /**Get trip by ID */
+  static async get(tripId) {
+    const result = await db.query(
+      `SELECT id, user_id, location, start_date, end_date
+       FROM trips
+       WHERE id = $1`,
+      [tripId]
+    );
+  
+    const trip = result.rows[0];
+    if (!trip) throw new NotFoundError(`No trip with ID: ${tripId}`);
+    return trip;
+  }
+  
  
 /** Update trip location and/or dates */
 static async updateTrip(tripId, location, start_date, end_date) {
@@ -146,14 +161,6 @@ static async updateTrip(tripId, location, start_date, end_date) {
     return result.rows[0];
   }
 
-  /** Get trip by ID */
-  static async get(id) {
-    const result = await db.query(
-      `SELECT * FROM trips WHERE id = $1`,
-      [id]
-    );
-    return result.rows[0];
-  }
 
   /** Add an activity to a trip */
   static async addActivity({ trip_id, date, description }) {
