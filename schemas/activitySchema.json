@@ -4,8 +4,7 @@
   "properties": {
     "trip_id": { "type": "integer" },
     "date": { "type": "string", "format": "date" },
-    "description": { "type": "string", "minLength": 1 },
-    "source": { "type": "string", "enum": ["user", "amadeus"], "default": "user" }
+    "description": { "type": "string", "minLength": 1 }
   },
   "required": ["trip_id", "date", "description"],
   "additionalProperties": false

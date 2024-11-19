@@ -12,29 +12,6 @@ const { ensureLoggedIn } = require("../middleware/auth");
 
 const router = express.Router();
 
-/** POST /:username/trips { trip } => { trip }
- *
- * Adds a new trip for the user.
- *
- * Authorization required: logged in
- */
-router.post("/:username/trips", ensureCorrectUser, async function (req, res, next) {
-  try {
-    const { location, start_date, end_date } = req.body;
-
-    // Attach the trip to the logged-in user
-    const trip = await Trip.create({
-      username: req.params.username, 
-      location,
-      start_date,
-      end_date,
-    });
-
-    return res.status(201).json({ trip });
-  } catch (err) {
-    return next(err);
-  }
-});
 
 
 
@@ -78,12 +55,22 @@ router.delete("/:username", ensureCorrectUser, async function (req, res, next) {
  */
 router.patch("/:username", ensureCorrectUser, async function (req, res, next) {
   try {
+    // Define or import a JSON schema for user updates
+    const userUpdateSchema = require("../schemas/userUpdate.json");
+    
+    const validator = jsonschema.validate(req.body, userUpdateSchema);
+    if (!validator.valid) {
+      const errs = validator.errors.map((e) => e.stack);
+      throw new BadRequestError(errs);
+    }
+
     const user = await User.update(req.params.username, req.body);
     return res.json({ user });
   } catch (err) {
     return next(err);
   }
 });
+
 
 
 /** GET /:username/trips => { trips: [ trip, ... ] }

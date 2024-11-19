@@ -3,6 +3,9 @@
 const db = require("../db");
 const bcrypt = require("bcrypt");
 const { BCRYPT_WORK_FACTOR } = require("../config");
+const { createToken } = require("../tokens/tokens");
+
+let u1Token;
 
 async function commonBeforeAll() {
   await db.query("TRUNCATE packing_items, trip_activities, trip_dates, trips, users RESTART IDENTITY CASCADE");
@@ -32,17 +35,20 @@ async function commonBeforeAll() {
       (3, 1, '2024-11-07', 63.5, 48.5, 25.0)`);
 
   await db.query(`
-    INSERT INTO trip_activities (id, trip_date_id, description)
+    INSERT INTO trip_activities (id, trip_id, date, description)
     VALUES
-      (1, 1, 'Visit Golden Gate Bridge'),
-      (2, 2, 'Explore Fisherman''s Wharf'),
-      (3, 3, 'Tour Alcatraz Island')`);
+      (1, 1, '2024-11-05', 'Visit Golden Gate Bridge'),
+      (2, 1, '2024-11-06', 'Explore Fisherman''s Wharf'),
+      (3, 1, '2024-11-07', 'Tour Alcatraz Island')`);
 
   await db.query(`
-    INSERT INTO packing_items (id, trip_id, item)
+    INSERT INTO packing_items (id, trip_id, item_name)
     VALUES
       (1, 1, 'Raincoat'),
       (2, 1, 'Sunscreen')`);
+
+  // Create tokens after user creation
+  u1Token = createToken({ id: 1, username: "testuser" });
 }
 
 async function commonBeforeEach() {
@@ -54,13 +60,13 @@ async function commonAfterEach() {
 }
 
 async function commonAfterAll() {
-  await db.end(); // Ensure DB is properly closed
+  await db.end();
 }
 
-// Apply timeouts to hooks
 module.exports = {
-  commonBeforeAll: async () => { await commonBeforeAll(); }, // default timeout
-  commonBeforeEach: async () => { await commonBeforeEach(); }, // default timeout
-  commonAfterEach: async () => { await commonAfterEach(); }, // default timeout
-  commonAfterAll: async () => { await commonAfterAll(); }, // db.end closes properly
+  commonBeforeAll,
+  commonBeforeEach,
+  commonAfterEach,
+  commonAfterAll,
+  u1Token,
 };

@@ -174,14 +174,18 @@ static async updateTrip(tripId, location, start_date, end_date) {
   }
   
 
-  /** Get all activities for a trip */
-  static async getActivities(tripId) {
-    const result = await db.query(
-      `SELECT * FROM trip_activities WHERE trip_date_id = $1`,
-      [tripId]
-    );
-    return result.rows;
-  }
+/** Get all activities for a trip */
+static async getActivities(tripId) {
+  const result = await db.query(
+    `SELECT id, trip_id, date, description
+     FROM trip_activities
+     WHERE trip_id = $1
+     ORDER BY date`,
+    [tripId]
+  );
+  return result.rows;
+}
+
 
   /** Recommend packing items based on weather and activities */
   static getPackingRecommendations(weather, activities) {

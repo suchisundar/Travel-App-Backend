@@ -7,13 +7,88 @@ const User = require("../models/user");
 const { BadRequestError, NotFoundError } = require("../expressError");
 const tripSchema = require("../schemas/tripschema.json");
 const activitySchema = require("../schemas/activityschema.json");
-const { repackageData } = require("../utils/repackageData");
-const {authAmadeus} = require("../utils/amadeusAuth");
+const repackageData = require("../utils/repackageData");
 const { ensureLoggedIn, ensureCorrectUser } = require("../middleware/auth");
 const axios = require("axios");
 const { API_BASE_URL, API_KEY } = require("../config");
-
+const { formatISO, parseISO } = require("date-fns");
+const weatherCache = {};
 const router = new express.Router();
+
+/** Helper: Get weather data for a location and date range */
+const getWeather = async (location, start_date, end_date) => {
+  console.log("getWeather called with:", { location, start_date, end_date });
+  const cacheKey = `${location}-${start_date}-${end_date}`;
+
+  // Check if data is in cache
+  if (weatherCache[cacheKey]) {
+    console.log("Returning cached weather data");
+    return weatherCache[cacheKey];
+  }
+
+  // Convert start_date to a Date object
+  let startDateObj;
+  if (typeof start_date === "string") {
+    startDateObj = parseISO(start_date);
+  } else if (start_date instanceof Date) {
+    startDateObj = start_date;
+  } else {
+    throw new Error("start_date is neither a string nor a Date object");
+  }
+
+  // Convert end_date to a Date object
+  let endDateObj;
+  if (typeof end_date === "string") {
+    endDateObj = parseISO(end_date);
+  } else if (end_date instanceof Date) {
+    endDateObj = end_date;
+  } else {
+    throw new Error("end_date is neither a string nor a Date object");
+  }
+
+  // Validate that the dates are valid
+  if (isNaN(startDateObj.getTime())) {
+    throw new Error(`Invalid start_date: ${start_date}`);
+  }
+  if (isNaN(endDateObj.getTime())) {
+    throw new Error(`Invalid end_date: ${end_date}`);
+  }
+
+  // Format the dates to ISO string
+  const start = formatISO(startDateObj, { representation: "date" });
+  const end = formatISO(endDateObj, { representation: "date" });
+
+  console.log("Formatted dates:", { start, end });
+
+  try {
+    // Proceed with the API call
+    const response = await axios.get(
+      `${API_BASE_URL}${encodeURIComponent(location)}/${start}/${end}?unitGroup=metric&key=${API_KEY}`
+    );
+
+    console.log("Weather API response data:", response.data);
+
+    if (!response.data || !response.data.days) {
+      throw new Error(
+        `Invalid response from weather API: ${JSON.stringify(response.data)}`
+      );
+    }
+
+    // Repackage the data
+    const weatherData = repackageData(response.data);
+
+    // Store the data in cache
+    weatherCache[cacheKey] = weatherData;
+
+    return weatherData;
+  } catch (err) {
+    console.error(
+      "Error fetching weather data:",
+      err.response ? err.response.data : err.message
+    );
+    throw new Error("Failed to fetch weather data");
+  }
+};
 
 /** POST /trips { trip } => { trip }
  *
@@ -32,7 +107,7 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
     }
 
     const username = res.locals.user.username;
-    const user = await User.get(username); 
+    const user = await User.get(username);
 
     const { location, start_date, end_date } = req.body;
 
@@ -50,7 +125,9 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
 });
 
 /** POST /:tripId/packinglist { item_name } => { packingListItem }
+ *
  * Adds an item to the packing list for a trip.
+ *
  * Authorization required: correct user
  */
 router.post("/:tripId/packinglist", ensureCorrectUser, async function (req, res, next) {
@@ -67,7 +144,9 @@ router.post("/:tripId/packinglist", ensureCorrectUser, async function (req, res,
 });
 
 /** PATCH /packing-items/:itemId { is_checked } => { packingItem }
+ *
  * Updates a packing item's checked status.
+ *
  * Authorization required: correct user
  */
 router.patch("/packing-items/:itemId", ensureCorrectUser, async function (req, res, next) {
@@ -81,7 +160,9 @@ router.patch("/packing-items/:itemId", ensureCorrectUser, async function (req, r
 });
 
 /** DELETE /packing-items/:itemId => { deleted: itemId }
+ *
  * Deletes a packing item by item ID.
+ *
  * Authorization required: correct user
  */
 router.delete("/packing-items/:itemId", ensureCorrectUser, async function (req, res, next) {
@@ -93,14 +174,12 @@ router.delete("/packing-items/:itemId", ensureCorrectUser, async function (req, 
   }
 });
 
-
-/** GET /packinglist/:tripId => { packingList }
+/** GET /:tripId/packinglist => { packingList }
  *
  * Gets the packing list for a trip.
  *
  * Authorization required: logged in
  */
-
 router.get("/:tripId/packinglist", ensureLoggedIn, async function (req, res, next) {
   try {
     const packingList = await Trip.getPackingItems(req.params.tripId);
@@ -109,7 +188,6 @@ router.get("/:tripId/packinglist", ensureLoggedIn, async function (req, res, nex
     return next(err);
   }
 });
-
 
 /** PATCH /:tripId { location, start_date, end_date } => { trip }
  *
@@ -122,17 +200,19 @@ router.patch("/:tripId", ensureLoggedIn, async function (req, res, next) {
     const { location, start_date, end_date } = req.body;
     const tripId = req.params.tripId;
 
-    const updatedTrip = await Trip.updateTrip(tripId, location, start_date, end_date);
+    const formattedStartDate = formatISO(parseISO(start_date), { representation: "date" });
+    const formattedEndDate = formatISO(parseISO(end_date), { representation: "date" });
 
-    const weatherData = await Trip.getWeather(updatedTrip.location, updatedTrip.start_date, updatedTrip.end_date);
+    const updatedTrip = await Trip.updateTrip(tripId, location, formattedStartDate, formattedEndDate);
+
+    const weatherData = await getWeather(updatedTrip.location, formattedStartDate, formattedEndDate);
 
     await Trip.deleteWeatherForTrip(tripId);
-    await Promise.all(
-      weatherData.map((day) => Trip.addWeather({ trip_id: tripId, ...day }))
-    );
+    await Promise.all(weatherData.days.map((day) => Trip.addWeather({ trip_id: tripId, ...day })));
 
     return res.json({ trip: updatedTrip });
   } catch (err) {
+    console.error("Error updating trip or fetching weather:", err);
     return next(err);
   }
 });
@@ -158,7 +238,7 @@ router.get("/:username/trips", ensureCorrectUser, async function (req, res, next
  *
  * Authorization required: logged in
  */
-router.get("/:tripId", ensureLoggedIn, async (req, res, next) => {
+router.get("/:tripId", ensureLoggedIn, async function (req, res, next) {
   try {
     const trip = await Trip.get(req.params.tripId);
     if (!trip) throw new NotFoundError(`Trip not found: ${req.params.tripId}`);
@@ -178,60 +258,41 @@ router.get("/:tripId/weather", ensureLoggedIn, async function (req, res, next) {
   try {
     const trip = await Trip.get(req.params.tripId);
     if (!trip) throw new NotFoundError(`Trip not found: ${req.params.tripId}`);
+
     const { location, start_date, end_date } = trip;
 
-    const response = await axios.get(
-      `${API_BASE_URL}${location}/${start_date}/${end_date}?unitGroup=metric&key=${API_KEY}`
-    );
+    const weatherData = await getWeather(location, start_date, end_date);
 
-    const weatherData = repackageData(response.data);
-    res.json(weatherData);
+    res.json({ weather: weatherData }); 
   } catch (err) {
-    console.error("Weather API Error:", err);
-    return next(err);
-  }
-});
-
-/** GET /activitysearch?location=... => { activities }
- * Searches activities in a location using Amadeus API.
- * Authorization required: logged in
- */
-router.get("/activitysearch", ensureLoggedIn, async function (req, res, next) {
-  try {
-    const { location } = req.query;
-    const token = await authAmadeus();
-    const response = await axios.get(`https://test.api.amadeus.com/v1/shopping/activities`, {
-      params: { latitude: location.lat, longitude: location.lng },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    return res.json({ activities: response.data.data });
-  } catch (err) {
-    console.error("Activity Search Error:", err);
+    console.error("Weather API Error:", err.message);
     return next(err);
   }
 });
 
 
-/** POST /:tripId/activities { activity } => { activity }
+/** POST /:tripId/activities => { activity }
  *
  * Adds an activity to a trip.
  *
  * Authorization required: logged in
  */
-router.post("/:tripId/activities", ensureLoggedIn, async (req, res, next) => {
+router.post("/:tripId/activities", ensureLoggedIn, async function (req, res, next) {
   try {
-    const validator = jsonschema.validate(req.body, activitySchema);
+    const activityData = {
+      trip_id: parseInt(req.params.tripId),
+      date: req.body.date,
+      description: req.body.description,
+    };
+
+    // Validate activityData using activitySchema
+    const validator = jsonschema.validate(activityData, activitySchema);
     if (!validator.valid) {
       const errs = validator.errors.map((e) => e.stack);
       throw new BadRequestError(errs);
     }
 
-    const activity = await Trip.addActivity({
-      trip_id: req.params.tripId,
-      date: req.body.date,
-      description: req.body.description,
-    });
+    const activity = await Trip.addActivity(activityData);
 
     return res.status(201).json({ activity });
   } catch (err) {
@@ -239,13 +300,13 @@ router.post("/:tripId/activities", ensureLoggedIn, async (req, res, next) => {
   }
 });
 
-/** GET /:tripId/activities => { activities }
+/** GET /:tripId/activities => { activities: [...] }
  *
- * Gets all activities for a trip.
+ * Retrieves all activities for a trip.
  *
  * Authorization required: logged in
  */
-router.get("/:tripId/activities", ensureLoggedIn, async (req, res, next) => {
+router.get("/:tripId/activities", ensureLoggedIn, async function (req, res, next) {
   try {
     const activities = await Trip.getActivities(req.params.tripId);
     return res.json({ activities });
